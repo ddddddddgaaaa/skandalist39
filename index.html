@@ -413,6 +413,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            min-height: 0;
         }
         .red-participants h4 {
             margin: 0;
@@ -423,6 +424,7 @@
             font-size: 13px;
             letter-spacing: 1px;
             border-bottom: 1px solid var(--section-accent-border);
+            flex-shrink: 0;
         }
         #full-participants-list {
             flex: 1;
@@ -431,7 +433,7 @@
             font-size: 14.5px;
             line-height: 1.65;
             color: #e0e7ff;
-            max-height: calc(21 * 36px);
+            min-height: 0;
         }
         #full-participants-list div {
             padding: 5px 10px;
@@ -497,6 +499,9 @@
             border-color: var(--section-accent);
             color: var(--section-accent);
             background: var(--section-accent-bg);
+            margin-top: auto;
+            margin-bottom: 0;
+            flex-shrink: 0;
         }
         .red-participants .btn-main:hover {
             background: var(--section-accent-hover);
@@ -722,43 +727,60 @@
         }
         @keyframes textGlow {
             0%, 100% {
-                text-shadow: 0 0 10px rgba(255, 20, 147, 0.5), 0 0 20px rgba(255, 20, 147, 0.3);
-                opacity: 0.8;
+                text-shadow: 0 0 15px rgba(255, 20, 147, 0.8), 0 0 30px rgba(255, 20, 147, 0.6), 0 0 45px rgba(255, 20, 147, 0.4);
+                opacity: 1;
                 transform: scale(1);
+                filter: brightness(1.3);
             }
             50% {
-                text-shadow: 0 0 20px rgba(255, 20, 147, 0.8), 0 0 40px rgba(255, 20, 147, 0.5);
+                text-shadow: 0 0 25px rgba(255, 20, 147, 1), 0 0 50px rgba(255, 20, 147, 0.8), 0 0 75px rgba(255, 20, 147, 0.6), 0 0 100px rgba(255, 105, 180, 0.4);
                 opacity: 1;
-                transform: scale(1.15);
+                transform: scale(1.08);
+                filter: brightness(1.5);
             }
         }
         @keyframes gradientMove {
             0% { background-position: 0% center; }
             100% { background-position: 200% center; }
         }
+        @keyframes borderGlow {
+            0%, 100% {
+                border-color: rgba(255,20,147,1);
+                box-shadow: 0 0 50px rgba(255,20,147,0.9), 0 0 100px rgba(255,20,147,0.6), 0 0 150px rgba(255,105,180,0.4), inset 0 0 40px rgba(255,20,147,0.4);
+            }
+            50% {
+                border-color: rgba(255,105,180,1);
+                box-shadow: 0 0 70px rgba(255,20,147,1), 0 0 140px rgba(255,20,147,0.8), 0 0 200px rgba(255,105,180,0.6), inset 0 0 60px rgba(255,20,147,0.6);
+            }
+        }
         .animated-header {
-            font-size: 22px;
+            font-size: 18px;
             background: linear-gradient(90deg, #ff006e, #ff1493, #ff69b4, #ff1493, #ff006e);
             background-size: 200% auto;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             font-weight: 900;
-            letter-spacing: 2.5px;
+            letter-spacing: 1.5px;
             text-transform: uppercase;
             text-align: center;
-            padding: 18px 24px;
+            padding: 14px 16px;
             margin-bottom: 12px;
             display: block;
             width: 100%;
-            background-color: linear-gradient(135deg, rgba(255,0,110,0.25), rgba(255,20,147,0.25));
-            background-image: linear-gradient(90deg, #ff006e, #ff1493, #ff69b4, #ff1493, #ff006e), linear-gradient(135deg, rgba(255,0,110,0.3), rgba(255,20,147,0.3));
+            box-sizing: border-box;
+            background-color: linear-gradient(135deg, rgba(255,0,110,0.35), rgba(255,20,147,0.35));
+            background-image: linear-gradient(90deg, #ff006e, #ff1493, #ff69b4, #ff1493, #ff006e), linear-gradient(135deg, rgba(255,0,110,0.4), rgba(255,20,147,0.4));
             background-origin: padding-box;
             background-clip: text, padding-box;
-            border: 2px solid rgba(255,20,147,0.8);
+            border: 3px solid rgba(255,20,147,1);
             border-radius: 14px;
-            animation: textGlow 1.5s ease-in-out infinite, pulseScale 1.2s ease-in-out infinite, gradientMove 3s linear infinite;
-            box-shadow: 0 0 40px rgba(255,20,147,0.6), 0 0 80px rgba(255,20,147,0.3), inset 0 0 30px rgba(255,20,147,0.2);
+            animation: textGlow 1.2s ease-in-out infinite, pulseScale 1s ease-in-out infinite, gradientMove 2.5s linear infinite, borderGlow 1.5s ease-in-out infinite;
+            box-shadow: 0 0 50px rgba(255,20,147,0.9), 0 0 100px rgba(255,20,147,0.6), 0 0 150px rgba(255,105,180,0.4), inset 0 0 40px rgba(255,20,147,0.4);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            filter: brightness(1.2) saturate(1.3);
         }
         @keyframes pulseScale {
             0%, 100% { transform: scale(1); }
@@ -788,6 +810,35 @@
             .import-sidebar {
                 border-right: 0;
                 border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            }
+        }
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 280px 1fr 280px;
+                gap: 12px;
+                padding: 12px;
+            }
+            .animated-header {
+                font-size: 14px;
+                padding: 10px 12px;
+                letter-spacing: 1px;
+            }
+        }
+        @media (max-width: 1000px) {
+            .container {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                padding: 10px;
+            }
+            .panel {
+                max-height: none;
+            }
+            .middle-split {
+                flex-direction: column;
+                height: auto;
+            }
+            .red-participants, .orange-chat {
+                min-height: 300px;
             }
         }
         /* SOUND SELECTOR STYLES */
@@ -952,7 +1003,7 @@
                 <div class="red-participants">
                     <h4>СПИСОК УЧАСТНИКОВ <span id="user-count" style="font-size: 18px; color: var(--accent-neon-blue); font-weight: 800;">0</span></h4>
                     <div id="full-participants-list"></div>
-                    <button class="btn-main" style="margin: 10px 12px; width: calc(100% - 24px);" onclick="copyParticipants()">СКОПИРОВАТЬ УЧАСТНИКОВ</button>
+                    <button class="btn-main" style="margin: auto 12px 10px; width: calc(100% - 24px);" onclick="copyParticipants()">СКОПИРОВАТЬ УЧАСТНИКОВ</button>
                 </div>
                 <div class="orange-chat">
                     <h3>TWITCH CHAT VADYMS22</h3>
