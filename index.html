@@ -2187,8 +2187,8 @@
                 // Определяем что показывать для пустых полей
                 const displayTg = (h.tg && h.tg !== '---' && h.tg !== 'НЕТ ИНФОРМАЦИИ') ? h.tg : 'НЕТ ИНФОРМАЦИИ';
                 const displaySite = (h.site && h.site !== '---' && h.site !== 'НЕТ ИНФОРМАЦИИ') ? h.site : 'НЕТ ИНФОРМАЦИИ';
-                const displayAmount = (h.amount && h.amount > 0) ? (h.amount.toLocaleString() + ' ₽') : 'НЕТ ИНФОРМАЦИИ';
-                const displayDeposit = (h.deposit && h.deposit > 0) ? (h.deposit.toLocaleString() + ' ₽') : 'НЕТ ИНФОРМАЦИИ';
+                const displayAmount = (typeof h.amount === 'number' && !Number.isNaN(h.amount)) ? (h.amount.toLocaleString() + ' ₽') : 'НЕТ ИНФОРМАЦИИ';
+                const displayDeposit = (typeof h.deposit === 'number' && !Number.isNaN(h.deposit)) ? (h.deposit.toLocaleString() + ' ₽') : 'НЕТ ИНФОРМАЦИИ';
                 
                 if (h.isReroll) {
                     body.innerHTML += `<tr style="background:rgba(245,158,11,0.08);"><td><small>${h.date}</small></td><td style="color:#f59e0b; font-weight:bold;">🔄 ${h.name}</td><td style="color:#aaa;">${displayTg}</td><td style="color:#f59e0b; font-weight:bold;">БЫЛ РЕРОЛЬНУТ</td><td>—</td><td>—</td><td style="text-align:center;">${h.rerolls || 0}</td><td style="text-align:center;"><button style="background:none; border:none; color:red; cursor:pointer;" onclick="deleteHistoryItem(${realIndex})" title="Удалить">🗑️</button></td></tr>`;
@@ -2252,8 +2252,8 @@
                 }
                 // Определяем что показывать для пустых полей
                 const displaySite = (h.site && h.site !== '---' && h.site !== 'НЕТ ИНФОРМАЦИИ') ? h.site : 'НЕТ ИНФОРМАЦИИ';
-                const displayAmount = (h.amount && h.amount > 0) ? ('+' + h.amount + ' ₽') : 'НЕТ ИНФОРМАЦИИ';
-                const displayDeposit = (h.deposit && h.deposit > 0) ? ('(-' + h.deposit + ' ₽)') : 'НЕТ ИНФОРМАЦИИ';
+                const displayAmount = (typeof h.amount === 'number' && !Number.isNaN(h.amount)) ? ('+' + h.amount + ' ₽') : 'НЕТ ИНФОРМАЦИИ';
+                const displayDeposit = (typeof h.deposit === 'number' && !Number.isNaN(h.deposit)) ? ('(-' + h.deposit + ' ₽)') : 'НЕТ ИНФОРМАЦИИ';
                 
                 return `<div class="hist-row" style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.05); padding:5px 0; font-size:12px;"><span>${h.date.split(' ')[0]} - ${displaySite}</span><div><b style="color:var(--accent-neon-blue)">${displayAmount}</b><b style="color:white; margin-left:5px;">${displayDeposit}</b></div></div>`;
             }).reverse().join('') || '<div style="color:#555; text-align:center; margin-top:20px;">Первая победа!</div>';
