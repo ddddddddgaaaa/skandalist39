@@ -1707,6 +1707,14 @@
             // Если рулетка открыта, добавляем в ожидающие и сразу в основной список
             const wheelModal = document.getElementById('wheel-modal');
             if (wheelModal && wheelModal.style.display === 'flex') {
+                if (selectedSpinMode === 'elimination') {
+                    if (!pendingParticipants.includes(name)) {
+                        pendingParticipants.push(name);
+                        try { localStorage.setItem('bot_pending_participants', JSON.stringify(pendingParticipants)); } catch(e) {}
+                        console.log('Participant queued until elimination roulette closes:', name, pendingParticipants);
+                    }
+                    return;
+                }
                 if (!pendingParticipants.includes(name)) {
                     pendingParticipants.push(name);
                     // Сохраняем pendingParticipants в localStorage
@@ -1741,10 +1749,10 @@
             
             console.log('Processing pending participants:', pendingParticipants);
             
-            // Участники уже добавлены в participants при addParticipantToFirebase
-            // Просто очищаем список ожидающих
+            const participantsToAdd = [...pendingParticipants];
             pendingParticipants = [];
             try { localStorage.removeItem('bot_pending_participants'); } catch(e) {}
+            await updateParticipantsInFirebase(participantsToAdd, false);
             syncParticipantsState();
         }
 
@@ -1967,7 +1975,31 @@
             closeAuthModal();
         }
         
+        function recalculateLeadersFromHistory() {
+            const leaderMap = new Map();
+            globalHistory.forEach((h) => {
+                if (!h || h.isReroll || !h.name) return;
+                const key = h.name.toLowerCase();
+                if (!leaderMap.has(key)) {
+                    leaderMap.set(key, {
+                        name: h.name,
+                        amount: 0,
+                        deposits: 0,
+                        tg: '',
+                        site: '---'
+                    });
+                }
+                const leader = leaderMap.get(key);
+                leader.name = h.name || leader.name;
+                leader.amount += (typeof h.amount === 'number' ? h.amount : 0);
+                leader.deposits += (typeof h.deposit === 'number' ? h.deposit : 0);
+                if (h.tg && h.tg !== '---' && h.tg !== 'НЕТ ИНФОРМАЦИИ') leader.tg = h.tg;
+                if (h.site && h.site !== '---' && h.site !== 'НЕТ ИНФОРМАЦИИ') leader.site = h.site;
+            });
+            leaders = Array.from(leaderMap.values());
+        }
         function renderLeaderboard() {
+            recalculateLeadersFromHistory();
             leaders.sort((a,b) => b.amount - a.amount);
             const container = document.getElementById('leaderboard');
             container.innerHTML = '';
@@ -2223,6 +2255,7 @@
             const statusLabel = document.getElementById('win-status-label');
             winNickElement.classList.remove('winner-responded');
             timerLabel.classList.remove('timer-responded');
+            timerLabel.innerText = '00:00:00';
             statusLabel.classList.remove('winner-responded');
             statusLabel.style.color = 'var(--accent-neon-blue)';
             statusLabel.innerText = 'WINNER FOUND';
