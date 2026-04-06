@@ -1224,7 +1224,12 @@
                 <div style="display: flex; gap: 20px;"><div><small>Выигрышей:</small> <div id="win-count-stat" class="editable-stat" onclick="editWinnerCounter('count')" style="font-size: 20px; font-weight: bold;">0</div></div><div><small>Всего вывел:</small> <div id="win-sum-stat" class="editable-stat" onclick="editWinnerCounter('sum')" style="font-size: 20px; font-weight: bold; color: var(--accent-neon-blue);">0 ₽</div></div></div>
                 <div><small>Всего депозитов:</small> <div id="win-dep-stat" class="editable-stat" onclick="editWinnerCounter('dep')" style="font-size: 20px; font-weight: bold; color: var(--accent-neon-blue);">0 ₽</div></div>
             </div>
-            <div id="win-drop-history" style="overflow-y:auto; flex-grow:1; border-top: 1px solid #333; padding-top: 10px;"></div>
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; padding-top:10px; border-top: 1px solid #333;">
+                <span style="font-size:11px; color:#94a3b8; white-space:nowrap;">Показать записей:</span>
+                <input id="win-history-range" type="range" min="5" max="10" step="1" value="5" oninput="updateWinnerHistoryLimit(this.value)" style="flex:1; accent-color: var(--accent-neon-blue);">
+                <span id="win-history-range-value" style="font-size:12px; color:var(--accent-neon-blue); font-weight:800; min-width:22px; text-align:right;">5</span>
+            </div>
+            <div id="win-drop-history" style="overflow-y:auto; flex-grow:1;"></div>
         </div>
         <div class="win-form" style="background: rgba(255,255,255,0.05); padding: 25px; border-radius: 20px; display: flex; flex-direction: column; gap: 12px; border: 1px solid var(--accent-neon-blue);">
             <h3 style="margin:0; color: var(--accent-neon-blue);">Записать результат</h3>
@@ -1266,6 +1271,7 @@
         let userMessages = {};
         let timerSeconds = 600, timerRunning = false, winTimerActive = false;
         let currentWinner = null, selectedSpinMode = 'normal';
+        let winnerHistoryLimit = Math.max(5, Math.min(10, parseInt(localStorage.getItem('bot_winner_history_limit') || '5', 10) || 5));
         let rerollCount = 0;
         let currentRotation = 0;
         let currentCodeword = "+";
@@ -2186,7 +2192,7 @@
             cloudSaveAppStateDebounced(); // сохраняем топ и историю
         }
         
-        function openStats() { const stats = {}; globalHistory.forEach(h => { const siteName = h.site || '---'; if(!stats[siteName]) stats[siteName] = { count: 0, sum: 0, deps: 0 }; stats[siteName].count++; stats[siteName].sum += (h.amount || 0); stats[siteName].deps += (h.deposit || 0); }); const body = document.getElementById('stats-body'); body.innerHTML = ''; Object.keys(stats).sort().forEach(site => { body.innerHTML += `<tr><td><b>${site}</b></td><td>${stats[site].count}</td><td>${stats[site].sum.toLocaleString()} ₽</td><td>${stats[site].deps.toLocaleString()} ₽</td><td><button class="btn-edit-row" style="color:var(--accent-neon-blue); background:none; border:none; cursor:pointer;" onclick="editProjectName('${site}')" title="Переименовать проект">✏️</button><button class="btn-delete-row" style="color:red; background:none; border:none; cursor:pointer;" onclick="deleteProjectRecords('${site}')" title="Удалить все записи по проекту">🗑️</button></td></tr>`; }); document.getElementById('stats-modal').style.display = 'flex'; }
+        function openStats() { const stats = {}; globalHistory.forEach(h => { if (h.isReroll) return; const siteName = h.site || '---'; if(!stats[siteName]) stats[siteName] = { count: 0, sum: 0, deps: 0 }; stats[siteName].count++; stats[siteName].sum += (h.amount || 0); stats[siteName].deps += (h.deposit || 0); }); const body = document.getElementById('stats-body'); body.innerHTML = ''; Object.keys(stats).sort().forEach(site => { body.innerHTML += `<tr><td><b>${site}</b></td><td>${stats[site].count}</td><td>${stats[site].sum.toLocaleString()} ₽</td><td>${stats[site].deps.toLocaleString()} ₽</td><td><button class="btn-edit-row" style="color:var(--accent-neon-blue); background:none; border:none; cursor:pointer;" onclick="editProjectName('${site}')" title="Переименовать проект">✏️</button><button class="btn-delete-row" style="color:red; background:none; border:none; cursor:pointer;" onclick="deleteProjectRecords('${site}')" title="Удалить все записи по проекту">🗑️</button></td></tr>`; }); document.getElementById('stats-modal').style.display = 'flex'; }
         function editProjectName(oldName) { 
             let newName = prompt('Новое название проекта:', oldName); 
             if (newName && newName !== oldName) { 
@@ -2246,6 +2252,32 @@
             } 
         }
         function editWinnerCounter(type) { if (!currentWinner) return; let val = prompt('Введите новое значение:'); if (val !== null) { if (type === 'count') document.getElementById('win-count-stat').innerText = val; if (type === 'sum') document.getElementById('win-sum-stat').innerText = parseInt(val).toLocaleString() + ' ₽'; if (type === 'dep') document.getElementById('win-dep-stat').innerText = parseInt(val).toLocaleString() + ' ₽'; } }
+        function buildWinnerHistoryMarkup(historyItems) {
+            return historyItems.map(h => {
+                if (h.isReroll) {
+                    return `<div class="hist-row" style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.05); padding:5px 0; font-size:12px;"><span style="color:#f59e0b;">🔄 ${h.date.split(' ')[0]} — БЫЛ РЕРОЛЬНУТ</span></div>`;
+                }
+                const displaySite = (h.site && h.site !== '---' && h.site !== 'НЕТ ИНФОРМАЦИИ') ? h.site : 'НЕТ ИНФОРМАЦИИ';
+                const displayAmount = (typeof h.amount === 'number' && !Number.isNaN(h.amount)) ? ('+' + h.amount + ' ₽') : 'НЕТ ИНФОРМАЦИИ';
+                const displayDeposit = (typeof h.deposit === 'number' && !Number.isNaN(h.deposit)) ? ('(-' + h.deposit + ' ₽)') : 'НЕТ ИНФОРМАЦИИ';
+                return `<div class="hist-row" style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.05); padding:5px 0; font-size:12px;"><span>${h.date.split(' ')[0]} - ${displaySite}</span><div><b style="color:var(--accent-neon-blue)">${displayAmount}</b><b style="color:white; margin-left:5px;">${displayDeposit}</b></div></div>`;
+            }).join('') || '<div style="color:#555; text-align:center; margin-top:20px;">Первая победа!</div>';
+        }
+        function renderWinnerHistory(name) {
+            const histCont = document.getElementById('win-drop-history');
+            if (!histCont || !name) return;
+            const allUserHistory = globalHistory.filter(h => h.name.toLowerCase() === name.toLowerCase()).slice(-winnerHistoryLimit).reverse();
+            histCont.innerHTML = buildWinnerHistoryMarkup(allUserHistory);
+        }
+        function updateWinnerHistoryLimit(value) {
+            winnerHistoryLimit = Math.max(5, Math.min(10, parseInt(value, 10) || 5));
+            localStorage.setItem('bot_winner_history_limit', String(winnerHistoryLimit));
+            const range = document.getElementById('win-history-range');
+            const label = document.getElementById('win-history-range-value');
+            if (range) range.value = String(winnerHistoryLimit);
+            if (label) label.innerText = String(winnerHistoryLimit);
+            if (currentWinner) renderWinnerHistory(currentWinner);
+        }
         function showWinnerRef(name) {
             closeModals();
             currentWinner = name;
@@ -2277,19 +2309,8 @@
             const rerollDisplay = document.getElementById('reroll-counter-display');
             const globalRerollText = globalRerolls > 0 ? ` | Реролов всего (Global): ${globalRerolls}` : '';
             rerollDisplay.innerText = 'Рероллов: ' + rerollCount + globalRerollText;
-            const allUserHistory = globalHistory.filter(h => h.name.toLowerCase() === name.toLowerCase());
-            const histCont = document.getElementById('win-drop-history');
-            histCont.innerHTML = allUserHistory.map(h => {
-                if (h.isReroll) {
-                    return `<div class="hist-row" style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.05); padding:5px 0; font-size:12px;"><span style="color:#f59e0b;">🔄 ${h.date.split(' ')[0]} — БЫЛ РЕРОЛЬНУТ</span></div>`;
-                }
-                // Определяем что показывать для пустых полей
-                const displaySite = (h.site && h.site !== '---' && h.site !== 'НЕТ ИНФОРМАЦИИ') ? h.site : 'НЕТ ИНФОРМАЦИИ';
-                const displayAmount = (typeof h.amount === 'number' && !Number.isNaN(h.amount)) ? ('+' + h.amount + ' ₽') : 'НЕТ ИНФОРМАЦИИ';
-                const displayDeposit = (typeof h.deposit === 'number' && !Number.isNaN(h.deposit)) ? ('(-' + h.deposit + ' ₽)') : 'НЕТ ИНФОРМАЦИИ';
-                
-                return `<div class="hist-row" style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.05); padding:5px 0; font-size:12px;"><span>${h.date.split(' ')[0]} - ${displaySite}</span><div><b style="color:var(--accent-neon-blue)">${displayAmount}</b><b style="color:white; margin-left:5px;">${displayDeposit}</b></div></div>`;
-            }).reverse().join('') || '<div style="color:#555; text-align:center; margin-top:20px;">Первая победа!</div>';
+            updateWinnerHistoryLimit(winnerHistoryLimit);
+            renderWinnerHistory(name);
             document.getElementById('win-amount-input').value = '';
             document.getElementById('win-deposit-input').value = '';
             document.getElementById('win-tg-input').value = savedTg;
@@ -2333,7 +2354,7 @@
                     name: currentWinner,
                     amount: 0,
                     deposit: 0,
-                    site: '--- БЫЛ РЕРОЛЬНУТ ---',
+                    site: '---',
                     tg: getSavedTelegram(currentWinner) || '---',
                     rerolls: rerollCount,
                     isReroll: true,
@@ -3464,7 +3485,7 @@
                     name: currentWinner,
                     amount: 0,
                     deposit: 0,
-                    site: '--- БЫЛ РЕРОЛЬНУТ ---',
+                    site: '---',
                     tg: getSavedTelegram(currentWinner) || '---',
                     rerolls: rerollCount,
                     isReroll: true,
