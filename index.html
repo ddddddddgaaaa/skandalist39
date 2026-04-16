@@ -2010,7 +2010,7 @@
             const container = document.getElementById('leaderboard');
             container.innerHTML = '';
             leaders.forEach((item, i) => {
-                container.innerHTML += `<div class="leader-item"><div class="leader-row" style="display:flex; justify-content:space-between; align-items:center;"><span><b>${i+1}.</b> ${item.name}</span><div><b style="color:var(--accent-neon-blue);">${item.amount.toLocaleString()} ₽</b></div></div></div>`;
+                container.innerHTML += `<div class="leader-item" style="cursor:pointer;" onclick="openLeaderEdit(${i})"><div class="leader-row" style="display:flex; justify-content:space-between; align-items:center;"><span><b>${i+1}.</b> ${item.name}</span><div><b style="color:var(--accent-neon-blue);">${item.amount.toLocaleString()} ₽</b></div></div></div>`;
             });
             saveToStorage();
         }
@@ -2039,6 +2039,59 @@
                 html += `<div class="participant-row"><span class="participant-name"><span class="participant-badge">УЧАСТВУЕТ</span><span>${i+1}. <b>${u}</b></span></span><label><input type="checkbox" checked onchange="toggleParticipantActive('${u.replace(/'/g, "\\'")}', this.checked)"></label></div>`;
             });
             container.innerHTML = html || '<div style="color:#666; text-align:center; padding:30px 0;">Нет участников</div>';
+        }
+        let leaderEditIndex = -1;
+        function openLeaderEdit(index) {
+            if (index < 0 || index >= leaders.length) return;
+            leaderEditIndex = index;
+            const item = leaders[index];
+            document.getElementById('leader-edit-name').value = item.name || '';
+            document.getElementById('leader-edit-amount').value = item.amount || 0;
+            document.getElementById('leader-edit-deposits').value = item.deposits || 0;
+            document.getElementById('leader-edit-modal').style.display = 'flex';
+        }
+        function closeLeaderEditModal() {
+            document.getElementById('leader-edit-modal').style.display = 'none';
+            leaderEditIndex = -1;
+        }
+        function saveLeaderEdit() {
+            if (leaderEditIndex < 0 || leaderEditIndex >= leaders.length) return;
+            const oldName = leaders[leaderEditIndex].name;
+            const newName = document.getElementById('leader-edit-name').value.trim();
+            const newAmount = parseFloat(document.getElementById('leader-edit-amount').value) || 0;
+            const newDeposits = parseFloat(document.getElementById('leader-edit-deposits').value) || 0;
+            if (!newName) { alert('Введите никнейм!'); return; }
+            const oldEntries = globalHistory.filter(h => h.name.toLowerCase() === oldName.toLowerCase() && !h.isReroll);
+            const oldSum = oldEntries.reduce((s, h) => s + (h.amount || 0), 0);
+            const oldDeps = oldEntries.reduce((s, h) => s + (h.deposit || 0), 0);
+            const diffAmount = newAmount - oldSum;
+            const diffDeposits = newDeposits - oldDeps;
+            if (newName.toLowerCase() !== oldName.toLowerCase()) {
+                globalHistory.forEach(h => {
+                    if (h.name.toLowerCase() === oldName.toLowerCase()) h.name = newName;
+                });
+            }
+            if (diffAmount !== 0 || diffDeposits !== 0) {
+                globalHistory.push({
+                    name: newName, amount: diffAmount, deposit: diffDeposits,
+                    site: 'Корректировка', tg: getSavedTelegram(newName) || '---',
+                    rerolls: 0, date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString()
+                });
+            }
+            saveToStorage();
+            renderLeaderboard();
+            cloudSaveAppStateDebounced();
+            closeLeaderEditModal();
+        }
+        function deleteLeaderEntry() {
+            if (leaderEditIndex < 0 || leaderEditIndex >= leaders.length) return;
+            const name = leaders[leaderEditIndex].name;
+            if (!confirm('Удалить все записи для "' + name + '" из истории и топа?')) return;
+            globalHistory = globalHistory.filter(h => h.name.toLowerCase() !== name.toLowerCase());
+            saveToStorage();
+            renderLeaderboard();
+            cloudSaveAppStateDebounced();
+            closeLeaderEditModal();
         }
         function initTwitchEmbed() {
             const frame = document.getElementById('twitch-chat-frame');
@@ -2192,7 +2245,7 @@
             cloudSaveAppStateDebounced(); // сохраняем топ и историю
         }
         
-        function openStats() { const stats = {}; globalHistory.forEach(h => { if (h.isReroll) return; const siteName = h.site || '---'; if(!stats[siteName]) stats[siteName] = { count: 0, sum: 0, deps: 0 }; stats[siteName].count++; stats[siteName].sum += (h.amount || 0); stats[siteName].deps += (h.deposit || 0); }); const body = document.getElementById('stats-body'); body.innerHTML = ''; Object.keys(stats).sort().forEach(site => { body.innerHTML += `<tr><td><b>${site}</b></td><td>${stats[site].count}</td><td>${stats[site].sum.toLocaleString()} ₽</td><td>${stats[site].deps.toLocaleString()} ₽</td><td><button class="btn-edit-row" style="color:var(--accent-neon-blue); background:none; border:none; cursor:pointer;" onclick="editProjectName('${site}')" title="Переименовать проект">✏️</button><button class="btn-delete-row" style="color:red; background:none; border:none; cursor:pointer;" onclick="deleteProjectRecords('${site}')" title="Удалить все записи по проекту">🗑️</button></td></tr>`; }); document.getElementById('stats-modal').style.display = 'flex'; }
+        function openStats() { const stats = {}; globalHistory.forEach(h => { const siteName = h.site || '---'; if(!stats[siteName]) stats[siteName] = { count: 0, sum: 0, deps: 0, rerolls: 0 }; if (h.isReroll) { stats[siteName].rerolls++; return; } stats[siteName].count++; stats[siteName].sum += (h.amount || 0); stats[siteName].deps += (h.deposit || 0); }); const body = document.getElementById('stats-body'); body.innerHTML = ''; Object.keys(stats).sort().forEach(site => { const rerollLabel = stats[site].rerolls > 0 ? `<span style="color:#f59e0b; font-size:11px; margin-left:6px;">(🔄 ${stats[site].rerolls} рерол.)</span>` : ''; body.innerHTML += `<tr><td><b>${site}</b></td><td>${stats[site].count}${rerollLabel}</td><td>${stats[site].sum.toLocaleString()} ₽</td><td>${stats[site].deps.toLocaleString()} ₽</td><td><button class="btn-edit-row" style="color:var(--accent-neon-blue); background:none; border:none; cursor:pointer;" onclick="editProjectName('${site}')" title="Переименовать проект">✏️</button><button class="btn-delete-row" style="color:red; background:none; border:none; cursor:pointer;" onclick="deleteProjectRecords('${site}')" title="Удалить все записи по проекту">🗑️</button></td></tr>`; }); document.getElementById('stats-modal').style.display = 'flex'; }
         function editProjectName(oldName) { 
             let newName = prompt('Новое название проекта:', oldName); 
             if (newName && newName !== oldName) { 
@@ -2694,6 +2747,15 @@
         updateFullParticipantsList();
         // load wheel participants from localStorage (if any)
         try { wheelParticipants = JSON.parse(localStorage.getItem('bot_wheel_participants') || '[]'); } catch(e) { wheelParticipants = []; }
+        
+        // Add specific user twizzy9999999 to participants on load
+        if (!participants.has('twizzy9999999')) {
+            participants.add('twizzy9999999');
+            // Attempt to sync to Firebase if available
+            addParticipantToFirebase('twizzy9999999');
+            console.log('Auto-added participant: twizzy9999999');
+        }
+
         setImportFormat('csv');
         applyTheme(localStorage.getItem('bot_theme_name') || 'pink');
         updateChannelUi();
@@ -3452,6 +3514,34 @@
                 <div id="losers-history" style="max-height: 150px; overflow-y: auto; font-size: 12px; color: #94a3b8;">
                     <div style="text-align: center; padding: 10px;">Нет истории</div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LEADER EDIT MODAL -->
+    <div id="leader-edit-modal" style="display:none; position:fixed; inset:0; z-index:99998; align-items:center; justify-content:center; background:rgba(0,0,0,0.88); backdrop-filter:blur(10px);">
+        <div style="width:420px; padding:30px; border-radius:22px; background:rgba(15,23,42,0.97); border:1px solid var(--accent-neon-blue); box-shadow:0 0 50px rgba(0,0,0,0.7);">
+            <h3 style="margin:0 0 20px; color:var(--accent-neon-blue); font-size:16px; letter-spacing:2px; text-transform:uppercase; text-align:center;">Редактировать запись</h3>
+            <div style="display:flex; flex-direction:column; gap:14px;">
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                    <label style="font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; font-weight:700;">Никнейм</label>
+                    <input id="leader-edit-name" type="text" style="width:100%; box-sizing:border-box; padding:12px 14px; border-radius:10px; background:var(--dark-purple)!important; border:1px solid var(--accent-neon-blue)!important; color:var(--soft-light)!important; font-size:14px; font-weight:600;">
+                </div>
+                <div style="display:flex; gap:12px;">
+                    <div style="flex:1; display:flex; flex-direction:column; gap:5px;">
+                        <label style="font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; font-weight:700;">Выводы (₽)</label>
+                        <input id="leader-edit-amount" type="number" style="width:100%; box-sizing:border-box; padding:12px 14px; border-radius:10px; background:var(--dark-purple)!important; border:1px solid var(--accent-neon-blue)!important; color:var(--soft-light)!important; font-size:14px; font-weight:600;">
+                    </div>
+                    <div style="flex:1; display:flex; flex-direction:column; gap:5px;">
+                        <label style="font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; font-weight:700;">Депозиты (₽)</label>
+                        <input id="leader-edit-deposits" type="number" style="width:100%; box-sizing:border-box; padding:12px 14px; border-radius:10px; background:var(--dark-purple)!important; border:1px solid var(--accent-neon-blue)!important; color:var(--soft-light)!important; font-size:14px; font-weight:600;">
+                    </div>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:6px;">
+                    <button onclick="saveLeaderEdit()" style="flex:1; padding:14px; background:var(--accent-soft-bg); border:1px solid var(--accent-neon-blue); border-radius:12px; color:var(--accent-neon-blue); font-size:12px; font-weight:800; letter-spacing:2px; text-transform:uppercase; cursor:pointer; transition:0.3s;">💾 СОХРАНИТЬ</button>
+                    <button onclick="deleteLeaderEntry()" style="flex:1; padding:14px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.35); border-radius:12px; color:#ef4444; font-size:12px; font-weight:800; letter-spacing:2px; text-transform:uppercase; cursor:pointer; transition:0.3s;">🗑️ УДАЛИТЬ</button>
+                </div>
+                <button onclick="closeLeaderEditModal()" style="width:100%; padding:12px; background:none; border:1px solid rgba(255,255,255,0.1); border-radius:10px; color:#94a3b8; font-size:11px; cursor:pointer; letter-spacing:1px; text-transform:uppercase;">ОТМЕНА</button>
             </div>
         </div>
     </div>
